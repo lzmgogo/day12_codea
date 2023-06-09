@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <base th:href="@{/}">
+    <meta charset="UTF-8" />
+    <title>尚硅谷会员注册页面</title>
+    <link type="text/css" rel="stylesheet" href="static/css/style.css" />
+    <link rel="stylesheet" href="static/css/register.css" />
+    <style type="text/css">
+      .login_form {
+        height: 420px;
+        margin-top: 25px;
+      }
+    </style>
+    <script src="static/script/vue.js"></script>
+    <script src="static/script/axios.min.js"></script>
+  </head>
+  <body>
+    <div id="app">
+    <div id="login_header">
+      <a href="index.html">
+        <img class="logo_img" alt="" src="static/img/logo.gif" />
+      </a>
+    </div>
+
+    <div class="login_banner">
+      <div class="register_form">
+        <h1>注册尚硅谷会员</h1>
+        <form action="user?flag=regist" method="post" @submit="checkAll">
+          <div class="form-item">
+            <div>
+              <label>用户名称:</label>
+              <input type="text" placeholder="请输入用户名" name="username" value="" @blur="checkUsername" v-model="username"/>
+            </div>
+            <span class="errMess">{{usernameerrMsg}}</span>
+          </div>
+          <div class="form-item">
+            <div>
+              <label>用户密码:</label>
+              <input type="password" placeholder="请输入密码" name="password" value="" @blur="checkPassword" v-model="password"/>
+            </div>
+            <span class="errMess">{{passworderrMsg}}</span>
+          </div>
+          <div class="form-item">
+            <div>
+              <label>确认密码:</label>
+              <input type="password" placeholder="请输入确认密码" @blur="surePassword" v-model="sure"/>
+            </div>
+            <span class="errMess">{{sureMsg}}</span>
+          </div>
+          <div class="form-item">
+            <div>
+              <label>用户邮箱:</label>
+              <input type="text" placeholder="请输入邮箱" name="email" value="" @blur="checkPost" v-model="post"/>
+            </div>
+            <span class="errMess">{{postMsg}}</span>
+          </div>
+		 
+          <div class="form-item">
+            <div>
+              <label>验证码:</label>
+              <div class="verify">
+                <input type="text" placeholder="" name="code" v-model="code"/>
+                <img :src="codeSrc" alt="" width="150px" @click="changeCode"/>
+              </div>
+            </div>
+            <span class="errMess">{{codeErrMsg}}</span>
+          </div>
+          <button class="btn">注册</button>
+        </form>
+      </div>
+    </div>
+    <div id="bottom">
+      <span>
+        尚硅谷书城.Copyright &copy;2015
+      </span>
+    </div>
+    </div>
+    <script>
+      new Vue({
+        "el":"#app",
+        "data":{
+          username:"[[${user!=null?'user.username':''}]]",
+          usernameerrMsg:"用户名应为6~16位数组和字母组成",
+          password:"[[${user!=null?'user.password':''}]]",
+          passworderrMsg:"密码的长度至少为8位",
+          sure:"[[${user!=null?'user.password':''}]]",
+          sureMsg:"密码两次输入不一致",
+          post:"[[${user!=null?'user.email':''}]]",
+          postMsg:"请输入正确的邮箱格式':codeErrMsg",
+          code:"[[${code}]]",
+          codeErrMsg:"[[${codeErrMsg==null?'请输入正确的验证码':codeErrMsg}]]",
+          codeSrc:"kaptchaSevlet",
+          usernameFlag:false
+        },
+        "methods":{
+          changeCode:function(){
+            this.codeSrc="kaptchaSevlet?aa="+new Date();
+          },
+          checkUsername:function ( ){
+            var usernameReg=/^[a-zA-Z0-9]{6,16}$/;
+            if(usernameReg.test(this.username)){
+              axios({
+                method:"post",
+                url:"user",
+                params:{
+                  flag:"checkUsername",
+                  username:this.username
+                }
+              }).then(response=>{
+                if (response.data.flag){
+                  this.usernameerrMsg="✅";
+                  this.usernameFlag=true
+                }else {
+                  this.usernameerrMsg="用户名重复,请更换";
+                  this.usernameFlag=false;
+                }
+              })
+            }else {
+              this.usernameerrMsg="用户名应为6~16位数组和字母组成"
+              return false;
+            }
+          },
+          checkPassword:function (){
+              var passwordReg=/^[a-zA-Z0-9]{8,}$/;
+              if(passwordReg.test(this.password)){
+                this.passworderrMsg="✅"
+                return true;
+              }else {
+                this.passworderrMsg="密码的长度至少为8位"
+                return false;
+              }
+          },
+          surePassword(){
+            if(this.checkPassword){
+              if(this.password==this.sure){
+                this.sureMsg="✅"
+                return true
+              }else {
+                this.sureMsg="密码两次输入不一致"
+                return false
+              }
+            }
+          },
+          checkPost(){
+            if(this.surePassword()){
+              var postReg=/^[a-zA-Z0-9]+([-_.][A-Za-zd]+)*@([a-zA-Z0-9]+[-.])+[A-Za-zd]{2,5}$/
+              if(postReg.test(this.post)){
+                this.postMsg="✅";
+                return true;
+              }else {
+                this.postMsg="请输入正确的邮箱格式"
+                return false;
+              }
+            }
+          },
+          checkAll(){
+            this.checkUsername()
+            if(!(this.usernameFlag&this.surePassword()&this.surePassword()&this.checkPost())){
+              event.preventDefault();
+            }
+          }
+        }
+      })
+    </script>
+  </body>
+</html>

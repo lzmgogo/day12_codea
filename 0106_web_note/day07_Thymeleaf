@@ -1,0 +1,261 @@
+1. 书城项目的第二阶段
+    1.1 对第一阶段的代码进行迁移
+        直接将pages/static/index.html拷贝到web下
+    1.2 将五个页面(index/login/regist/login_success/regist_success),所有的路径改为绝对路径
+        base标签(html的知识点)
+        位置：加在head标签内
+        功能：为当前网页内所有的路径添加前缀
+        代码：<base href="/bookstore02_war_exploded/">
+        注意：
+            base标签需要在所有路径的上方
+            一旦页面内的路径想使用base标签，路径前不能以/开头
+    1.3 准备工作
+        ① users表格创建好
+        ② 创建javaBean
+        ③ 导入jar包(mysql驱动、数据库连接池、dbutils、beanutils)   6个
+        ④ 将工具类粘贴过来(JdbcTools/BaseDaoImpl/druid.properties)
+    1.4 实现注册的功能
+        ① 找到regist.html
+            将form表单的action属性值设置为regist
+            <form action="regist" @submit="checkAll">
+        ② 创建RegistServlet
+            public class RegistServlet extends HttpServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 获得请求参数
+                    Map<String, String[]> parameterMap = request.getParameterMap();
+                    User user=new User();
+                    try {
+                        BeanUtils.populate(user,parameterMap);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    //2. 处理注册的业务(暂时不考虑用户名重复的问题)
+                    //将信息添加到数据库即可(密码的加密问题)
+                    UserDao userDao=new UserDaoImpl();
+                    String encode = MD5Util.encode(user.getPassword());//encode是加密后的密码
+                    user.setPassword(encode);
+                    boolean b = userDao.addUser(user);
+                    //3. 给响应(页面跳转)
+                    if(b){
+                        request.getRequestDispatcher("/pages/user/regist_success.html").forward(request,response);
+                    }else{
+                        request.getRequestDispatcher("/pages/user/regist.html").forward(request,response);
+                    }
+                }
+            }
+        ③ 创建UserDao
+            public class UserDaoImpl extends BaseDaoImpl implements UserDao {
+                @Override
+                public boolean addUser(User user) {
+                    String sql="insert into users values(null,?,?,?)";
+                    int update = this.update(sql, user.getUsername(), user.getPassword(), user.getEmail());
+                    return update>0;
+                }
+            }
+    1.5 业务层抽取出来
+        ① 找到regist.html,设置form表单的action
+            <form action="regist" @submit="checkAll">
+        ② RegistServlet
+            public class RegistServlet extends HttpServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 获得请求参数
+                    Map<String, String[]> parameterMap = request.getParameterMap();
+                    User user=new User();
+                    try {
+                        BeanUtils.populate(user,parameterMap);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    //2. 处理注册的业务(暂时不考虑用户名重复的问题)
+                    //将信息添加到数据库即可(密码的加密问题)
+                    UserService userService=new UserServiceImpl();
+                    boolean b = userService.regist(user);
+                    //3. 给响应(页面跳转)
+                    if(b){
+                        request.getRequestDispatcher("/pages/user/regist_success.html").forward(request,response);
+                    }else{
+                        request.getRequestDispatcher("/pages/user/regist.html").forward(request,response);
+                    }
+                }
+            }
+        ③ UserService
+            public class UserServiceImpl implements UserService {
+                @Override
+                public boolean regist(User user) {
+                    //1. 加密
+                    user.setPassword(MD5Util.encode(user.getPassword()));
+                    //2. 保存
+                    UserDao userDao=new UserDaoImpl();
+                    return userDao.addUser(user);
+                }
+            }
+        ④ UserDao
+            public class UserDaoImpl extends BaseDaoImpl implements UserDao {
+                @Override
+                public boolean addUser(User user) {
+                    String sql="insert into users values(null,?,?,?)";
+                    int update = this.update(sql, user.getUsername(), user.getPassword(), user.getEmail());
+                    return update>0;
+                }
+            }
+    1.6 登录功能
+        ① 找到login.html,修改form标签的action属性
+            <form action="login" @submit="checkLogin">
+        ② 创建LoginServlet
+            public class LoginServlet extends HttpServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 获得参数
+                    String username = request.getParameter("username");
+                    String password = request.getParameter("password");
+                    //2. 调用业务层进行业务处理
+                    UserService userService=new UserServiceImpl();
+                    User login = userService.login(username, password);
+                    //3. 给响应
+                    if(login==null){
+                        request.getRequestDispatcher("/pages/user/login.html").forward(request,response);
+                    }else{
+                        request.getRequestDispatcher("/pages/user/login_success.html").forward(request,response);
+                    }
+                }
+            }
+        ③ UserService
+            @Override
+                public User login(String username, String password) {
+                    //1. 先根据用户名查找User对象
+                    User userByUsername = userDao.findUserByUsername(username);
+                    //2. 如果找到，在验证密码是否正确(密码先加密后在验证)
+                    if(userByUsername!=null){
+                        String encode = MD5Util.encode(password);
+                        if(encode.equals(userByUsername.getPassword())){
+                            return userByUsername;
+                        }
+                    }
+                    return null;
+                }
+        ④ UserDao
+            @Override
+                public User findUserByUsername(String username) {
+                    String sql="select * from users where username=?";
+                    return this.getBean(User.class,sql,username);
+                }
+2. Thymeleaf
+    功能：服务器的渲染(就是将服务器的数据展示在网页上)
+    2.1 MVC
+        Model模型     javaBean(User/Book/Order...)
+        View视图      html+服务器的动态数据
+        Controller控制器    Servlet
+
+        View是当Servlet接收到service给的结果的时候，首先是到视图层(Thymeleaf),将动态数据和HTML进行拼接
+        从而产生一个View对象(视图)，将View对象展示在浏览器上(用户看到的就是有动态数据的网页)
+    2.2 Thymeleaf的优势
+        SpringBoot官方推荐使用的视图模板技术，和SpringBoot完美整合
+        不经过服务器运算仍然可以直接查看原始值，对前端工程师更友好
+    2.3 Thymeleaf的准备知识
+        /pages/user/regist_success.html
+        /pages/user/regist.html
+        /pages/user/login_success.html
+        /pages/user/login.html
+
+        视图前缀：/pages/user/
+        视图后缀：.html
+        逻辑视图：控制页面跳转的位置
+        物理视图：视图前缀+逻辑视图+视图后缀
+    2.4 Thymeleaf的HelloWorld
+        ① 导入Thymeleaf的jar包
+        ② 配置全局初始化参数
+            <!--thymeleaf的前缀和后缀-->
+            <context-param>
+                <param-name>view-prefix</param-name>
+                <param-value>/pages/</param-value>
+            </context-param>
+            <context-param>
+                <param-name>view-suffix</param-name>
+                <param-value>.html</param-value>
+            </context-param>
+        ③ 创建Thymeleaf的模板类
+            com.atguigu.servlet.ViewBaseServlet(从课件中复制粘贴即可)
+        ④ 创建index.html
+            <a href="hello">点击访问HelloServlet</a>
+        ⑤ HelloServlet(要通过Thymeleaf进行页面的渲染，需要继承ViewBaseServlet)
+            public class HelloServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    System.out.println("访问到了HelloServlet...");
+                    System.out.println("此处应该调用业务层处理业务。。。省略");
+                    //已经拿到业务层的结果
+                    //给响应(跳转至admin.html,并且将msg的数据展示在网页上)
+                    String msg="这是服务器的数据";
+                    //去到Thymeleaf让Themeleaf对页面做渲染操作
+                    request.setAttribute("msg",msg);
+                    this.processTemplate("admin",request,response);//原理也是转发
+                }
+            }
+        ⑥ admin.html中需要写thymealf的渲染表达式
+            <!DOCTYPE html>
+            <html lang="en" xmlns:th="http://www.thymeleaf.org">
+            <head>
+                <meta charset="UTF-8">
+                <title>Title</title>
+            </head>
+            <body>
+                <h1>admin</h1>
+                <h2 th:text="${msg}">放服务器传过来的msg数据</h2>
+            </body>
+            </html>
+
+            a. 需要在html标签内设置th这个名称空间
+                <html lang="en" xmlns:th="http://www.thymeleaf.org">
+            b. 在一个标签内通过添加属性的方式，让thymeleaf对该标签的标签体 内容进行渲染(覆盖)
+                <h2 th:text="${msg}">放服务器传过来的msg数据</h2>
+                    ${msg}  从请求域内获得key值为msg的value值
+    2.5 Thymeleaf的基本语法
+        ① 名称空间
+            thymeleaf所有的表达式都是通过属性的方式添加，th:表达式内容
+            位置：html标签的属性上   xmlns:th="http://www.thymeleaf.org"
+        ② 修改标签的文本值(双标签)
+            th:text="新值"
+            案例：<h2 th:text="${msg}">放服务器传过来的msg数据</h2>
+        ③ 修改标签的属性值(单标签和双标签)
+            th:属性名="新值"
+            案例：<input type="text" value="这是原始值" th:value="${msg}" >
+        ④ 解析URL地址
+            拿到url中的上下文路径:   @{/}
+            用途：
+                a. 用在base标签上
+                    <base href="/day07_Thymeleaf_war_exploded123/" th:href="@{/}">
+                b. 作为请求的路径
+                    <a th:href="@{/root(id=101,name='jack',age=20)}">RootServlet02</a>
+            如果你的网页想使用thymeleaf表达式的话，必须经过Servlet然后在经过Thymeleaf进行渲染才可以
+            项目内所有的网页都需要thymeleaf渲染(都需要过Servlet在过Thymeleaf模板引擎)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

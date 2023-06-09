@@ -1,0 +1,195 @@
+1. 动态表格
+2. 书城项目第一阶段
+    2.1 将静态页面粘贴进bookstore01模块内
+    2.2 登录页面的验证
+        ① 搭建Vue的框架
+        ② 在表单上添加submit事件
+            <form action="login_success.html" @submit="checkLogin">
+        ③ 在methods内创建函数
+            methods:{
+                checkLogin:function () {
+                  //验证用户名和密码是否有值
+                  if(this.username==""){
+                    //应给给出提示，用户名为空
+                    this.errMsg="用户名为空"
+                    event.preventDefault()
+                  }else if(this.password==""){
+                    //应给给出提示，密码为空
+                    this.errMsg="密码为空"
+                    event.preventDefault()
+                  }
+                }
+              }
+        ④ 设置三个数据模型
+            a. username和用户名的文本框进行双向绑定
+            b. password和密码的密码框进行双向绑定
+            c. errMsg和错误信息的提示进项绑定
+    2.3 注册页面
+        ① 用户名的格式验证
+            a. 创建两个数据模型
+                username:""
+                usernameErrMsg:""
+            b. 在用户名的文本框上添加blur事件
+                 <input type="text" placeholder="请输入用户名" @blur="checkUsername" v-model="username"/>
+            c. 创建checkUsername函数，函数内，写正则，验证用户名的格式，给出提示
+                checkUsername:function () {
+                      //验证用户名是否符合条件
+                      var usernameReg=/^[a-zA-Z0-9]{6,16}$/;
+                      if(usernameReg.test(this.username)){
+                        //说明符合条件
+                        //需要将信息提示改为√
+                        this.usernameErrMsg="√"
+                        return true;
+                      }else{
+                        this.usernameErrMsg="用户名应为6~16位数组和字母组成"
+                        return false;
+                      }
+                },
+        ② 密码的格式验证
+        ③ 确认密码的格式验证
+        ④ 邮箱的验证
+        ⑤ 点击注册按钮的验证
+            a. 在注册按钮上添加单击事件，或者在表单上添加提交事件
+                <form action="regist_success.html" @submit="checkAll">
+            b. 创建checkAll函数
+                checkAll:function () {
+                  if(!(this.checkUsername()&this.checkPassword()&this.checkConfirmPassword()&this.checkEmail())){
+                    //阻止表单提交
+                    event.preventDefault()
+                  }
+                }
+3. xml解析
+    用途：
+        ① 异步系统之间进行数据传输的媒介(json代替)
+        ② 配置文件
+            properties
+            XML     web.xml   SSM
+    XML： 可扩展标记语言
+        可扩展：标签并不止一套(可以扩展)
+            web.xml    有一套标签    servlet servlet-name   servlet-class  ...
+            Spring     spring.xml   bean
+            SpringMVC   springMVC.xml   <mvc:XXX>
+        约束：由组织去定义
+            看约束文件如何规定
+    3.1 xml的基本语法
+        ① 文档声明
+            <?xml version="1.0" encoding="UTF-8"?>
+        ② 约束文件
+    3.2 xml的解析
+        java程序如何拿到xml文件中的数据
+        ① 准备一个xml文件
+        ② 开始编写java程序，去解析xml文件
+            DOM4J是第三方工具
+            a. 导入dom4j的jar包
+            b. 开始创建xml解析器对象
+                SAXReader reader=new SAXReader();
+            c. 让解析器对象去解析xml文件
+                Document document=reader.read(Demo1.class.getClassLoader().getResourceAsStream("employees.xml"));
+            d. 开始获得内容
+                 Element root = document.getRootElement();//获得根节点对象
+                 Element employee = root.element("employee");//第一个employee
+                 String text = name.getText();   获得name标签中的文本
+                 List<Element> employees = root.elements("employee");   获得多个Element对象
+                 Attribute id = employee1.attribute("id");   根据属性名获得属性对象
+4. Tomcat
+    客户端：  用户使用的一端
+    服务器端：为客户端提供服务器
+        n台主机：刀片式服务器
+        操作系统：Linux系统(windows server)
+        服务器软件：  Tomcat
+    用户电脑看做是服务电脑
+    4.1 tomcat的下载和安装
+        使用的是解压安装方式：将压缩包放在一个无中文无空格的目录下
+            实例：D:\installation\apache-tomcat-8.5.27
+    4.2 tomcat的使用前提
+        需要正确配置JAVA_HOME的环境变量(因为需要java的运行环境)
+            如果不配置，或者配置错了，启动服务器是失败的
+    4.3 tomcat的目录结构
+        bin         命令文件存放的目录(服务器的启动和停止)
+        conf        配置文件存放的目录(server.xml)
+        lib         tomcat运行需要的jar包
+        logs        日志文件存放的目录
+        temp        临时文件
+        webapps     web项目部署的目录(war包  jar->java项目的压缩包   war->web项目编译后的压缩包)
+        work        工作的目录(jsp->Servlet)
+    4.4 启动/停止服务器
+        双击startup.bat
+        双击shutdown.bat或者直接点❌
+    4.5 部署一个静态项目(bookstore01)
+        直接复制粘贴到webapps内即可(重启服务器)
+5. 将tomcat集成到idea内
+    目的：让idea帮我们部署项目，并且启动、关闭、重新部署服务器
+    ① 将tomcat的路径设置到idea内
+        settings-->application Servers-->➕
+    ② 创建java的企业级模块(动态的web工程)
+        new-->动态web项目-->JDK/Tomcat/web-->设置模块名
+        本地动态web项目的结构：
+            day04_tomcat01   项目名
+                src    java代码
+                web
+                    静态资源(html/css/js/图片、音频、视频...)
+                    WEB-INF
+                        web.xml     web项目的核心配置文件
+                        lib         第三方jar包(lib必须在WEB-INF下，名称必须为lib)
+    ③ 通过idea启动服务器
+        点击启动按钮(正常启动、debug启动)，idea存在一个自动的机制(会自动弹出浏览器打开页面)
+    ④ idea启动的并不是本地服务器
+        idea对于服务器的机制，为每一个web模块，创建一个服务器镜像(副本)
+            C:\Users\86152\.IntelliJIdea2019.2\system\tomcat\各种服务器目录
+    ⑤ 部署在服务器上的项目是什么结构的？
+        war包(部署在服务器上的项目)的目录结构
+              项目的目录\out\artifacts\war包内容
+              day04_tomcat01_war_exploded(web下的所有内容)
+                    静态资源(html/css/js/图片...)
+                    WEB-INF
+                        classes     src下编写的java代码
+                        web.xml     核心配置文件
+                        lib         第三方jar包
+    ⑥ tomcat的基础设置
+        a. 本地服务器端口号的设置
+            本地服务器安装目录/conf/server.xml
+            <Connector port="9999" protocol="HTTP/1.1"
+                           connectionTimeout="20000"
+                           redirectPort="8443" />
+        b. idea内镜像服务器的设置
+            name:  建议将name设置成和当前模块挂钩的名字
+            自动弹出浏览器和网址的设置
+            修改更新的默认选中
+            镜像服务器的独立端口号
+            部署在服务器上的war包
+            application context   设置上下文路径
+6. 动态web项目创建的内容
+    项目
+        模块
+        war包
+        服务器的镜像
+7. 如何删除模块
+    4个位置：模块、war包、服务器、本地都需要删除
+8. 导入模块(复杂版)
+9. 导入模块(简单版)
+    ① 自己new一个动态web模块
+    ② 将模块的src和web复制粘贴进来即可
+10. 对项目进行修改操作(改源文件的内容、新建文件)  偶发事件
+    重新部署或者重启服务器之后，客户端还是访问不到(有可能是本地项目和war包的内容未同步)
+    解决方案：将war包删除，重新启动服务器即可
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,182 @@
+1. 书城项目的第四阶段
+    1.1 登录、保持登录状态、注销
+        ① 保持登录状态
+            找到处理登录请求的Servlet,将登录成功后获得的User对象放在会话域
+                request.getSession().setAttribute("user",login);
+            去到登录成功的页面
+                欢迎谁，需要从会话域中获得
+                <span>欢迎<span class="um_span" th:text="${session.user.username}">张总</span>光临尚硅谷书城</span>
+            去到首页，处理登录前后的风格
+                <!--未登录风格-->
+                          <div class="topbar-right" th:if="${session.user==null}">
+                            <a href="user?flag=toLoginPage" class="login">登录</a>
+                            <a href="user?flag=toRegistPage" class="register">注册</a>
+                            <a
+                              href="pages/cart/cart.html"
+                              class="cart iconfont icon-gouwuche
+                			"
+                            >
+                              购物车
+                              <div class="cart-num">3</div>
+                            </a>
+                            <a href="book?flag=findAllBook" class="admin">后台管理</a>
+                          </div>
+                <!--          登录后风格-->
+                          <div class="topbar-right" th:unless="${session.user==null}">
+                            <span>欢迎你<b th:text="${session.user.username}">张总</b></span>
+                            <a href="user?flag=logout" class="register">注销</a>
+                            <a
+                                    href="pages/cart/cart.jsp"
+                                    class="cart iconfont icon-gouwuche
+                			">
+                              购物车
+                              <div class="cart-num">3</div>
+                            </a>
+                            <a href="book?flag=findAllBook" class="admin">后台管理</a>
+                          </div>
+                        </div>
+            登录后风格有个注销
+                <a href="user?flag=logout" class="register">注销</a>
+                UserServlet创建方法logout
+                    protected void logout(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                            request.getSession().invalidate();
+                            response.sendRedirect(request.getContextPath()+"/index.html");
+                        }
+    1.2 注册页面的验证码
+        ① 让程序生成一张验证码的图片
+            a. 导入jar包
+            b. jar包中存在一个Servlet,响应就是一张验证码的图片
+            c. 为该Servlet配置一个访问路径
+                将正确验证码放在session域内，默认的key是：KAPTCHA_SESSION_KEY
+            d. 将访问路径设置给src属性
+                <img src="kaptchaServlet" alt="" width="150px"/>
+        ② 点击注册，验证验证码是否正确
+            protected void regist(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 验证验证码是否正确
+                    String code = request.getParameter("code");
+                    System.out.println("code = " + code);
+                    Object kaptcha_session_key = request.getSession().getAttribute("KAPTCHA_SESSION_KEY");
+                    System.out.println("kaptcha_session_key = " + kaptcha_session_key);
+                    //1. 获得请求参数
+                    Map<String, String[]> parameterMap = request.getParameterMap();
+                    User user=new User();
+                    try {
+                        BeanUtils.populate(user,parameterMap);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    if(code.equals(kaptcha_session_key)){
+                        //2. 处理注册的业务(暂时不考虑用户名重复的问题)
+                        //将信息添加到数据库即可(密码的加密问题)
+                        UserService userService=new UserServiceImpl();
+                        boolean b = userService.regist(user);
+                        //3. 给响应(页面跳转)
+                        if(b){
+                            request.setAttribute("username",user.getUsername());
+                            this.processTemplate("user/regist_success",request,response);
+                        }//目前不考虑注册失败的情况
+                    }else{
+                        //注册失败
+                        request.setAttribute("user",user);
+                        request.setAttribute("code",code);
+                        request.setAttribute("codeErrMsg","验证码错误");
+                        this.processTemplate("user/regist",request,response);
+                    }
+                }
+        ③ regist页面需要做数据回显
+            data:{
+                    username:"[[${user!=null?user.username:''}]]",
+                    usernameErrMsg:"用户名应为6~16位数组和字母组成",
+                    password:"[[${user!=null?user.password:''}]]",
+                    passwordErrMsg:"密码的长度至少为8位",
+                    confirmPassword:"[[${user!=null?user.password:''}]]",
+                    confirmPasswordErrMsg:"密码两次输入不一致",
+                    email:"[[${user!=null?user.email:''}]]",
+                    emailErrMsg:"请输入正确的邮箱格式",
+                    code:"[[${code}]]",
+                    codeErrMsg:"[[${codeErrMsg==null?'请输入正确的验证码':codeErrMsg}]]"
+                  },
+        ④ 换一张
+            changeCode:function(){
+                  //如何才能实现换一张图片？
+                  this.codeSrc="kaptchaServlet?aa="+new Date();
+                },
+        ⑤ 验证码的一些设置
+            通过为Servlet设置初始化参数的方式设置值
+            <servlet>
+                    <servlet-name>KaptchaServlet</servlet-name>
+                    <servlet-class>com.google.code.kaptcha.servlet.KaptchaServlet</servlet-class>
+                    <init-param>
+                        <param-name>kaptcha.textproducer.char.length</param-name>
+                        <param-value>4</param-value>
+                    </init-param>
+                    <init-param>
+                        <param-name>kaptcha.session.key</param-name>
+                        <param-value>trueCode</param-value>
+                    </init-param>
+                </servlet>
+2. AJAX
+    2.1 概念
+        服务器渲染(整个网页都会刷新)  Thymeleaf    同步请求
+        ajax渲染(局部刷新)           js           异步请求
+    2.2 AJAX
+        Asynchronous JavaScript And XML:异步的JavaScript和XML
+    2.3 AJAX的HelloWorld
+        ① 准备一个网页
+        ② 创建一个按钮，绑定一个单击事件
+            搭建Vue环境，绑定事件，触发函数
+        ③ 使用axios框架进行异步请求的发送
+            a. 导入框架代码
+                <script src="js/axios.min.js"></script>
+            b. 调用axios()方法
+            c. 设置请求方式、请求路径、请求参数
+                axios({
+                    method:"post",
+                    url:"ajax",
+                    params:{
+                        username:"admin",
+                        password:"root"
+                    }
+                });
+            d. 服务器的Servlet，处理请求，给响应
+                需要通过输出流的方式输出：
+                    PrintWriter writer = response.getWriter();
+                    writer.write("success");//谁请求我就写给谁
+            e. js如何接收响应(响应的数据)
+                设置回调函数：
+                200语法：axios({}).then(response=>{})
+                500语法：axios({}).then(response=>{}).catch(error=>{})
+            案例：
+                ajaxTest:function () {
+                    //发送请求到Servlet(使用axios异步请求框架)
+                    axios({
+                        method:"post",
+                        url:"ajax",
+                        params:{
+                            username:"admin",
+                            password:"root"
+                        }
+                    }).then(response=>{
+                        //如果响应状态码是200，则执行该函数(回调函数)
+                        alert("成功:"+response.data);
+                    }).catch(error=>{
+                        //如果响应状态码是500，则执行该函数(回调函数)
+                        alert("服务器出现异常");
+                    });
+                }
+    2.4 服务器返回json格式的数据
+        ① 自己创建json格式字符串
+            String str="{\"id\":101,\"name\":\"科比\",\"gender\":0,\"salary\":50000.0}";
+        ② 写出去
+            writer.write(str);
+    2.5 java中将java的对象转为json格式字符串的工具(gson)
+        ① 导入jar包
+        ② 创建Gson对象
+            Gson gson=new Gson();
+        ③ 调用toJson方法转化即可
+            String s1 = gson.toJson(list);
+
+
+
+
+

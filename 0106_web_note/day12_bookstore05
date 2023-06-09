@@ -1,0 +1,180 @@
+1. CommonResult工具的封装
+    目的：为了方便团队开发(统一的数据格式,有利于团队成员之间的协助，提高开发效率)
+    异步请求返回的数据，格式不统一(普通的字符串可以，返回json字符串也可以)
+    工具：自己团队封装的，以后你的公司使用什么工具是不确定的
+2. 工具的使用
+    ① 前端发送异步请求到Servlet
+    ② Servlet给响应数据的时候，将所有数据都封装到CommonResult对象内
+        案例：
+            CommonResult ok = CommonResult.ok().setResultData(new Employee(101, "暗卷", 0, 50000.0));
+            //ok内就携带flag的值和resultData的值
+            String s = new Gson().toJson(ok);
+            System.out.println("s = " + s);
+            //{"flag":true,"resultData":{"id":101,"name":"暗卷","gender":0,"salary":50000.0}}
+            //需要将s返回
+            response.getWriter().write(s);//js那一端，response.data
+3. 书城项目第五阶段
+    3.1 用户名重复验证
+        需求：当用户输入完用户名之后，就会给出响应的提示
+        实现步骤：
+            ① 注册页面用户名文本框的失去焦点事件
+                引入axios框架代码
+                <script src="static/script/axios.min.js"></script>
+                在格式通过验证之后，咱们需要做用户名唯一性的验证(发送异步请求)
+            代码：
+                checkUsername:function () {
+                          //验证用户名是否符合条件
+                          var usernameReg=/^[a-zA-Z0-9]{6,16}$/;
+                          if(usernameReg.test(this.username)){
+                            //说明符合条件
+                            //需要将信息提示改为√
+                            //在格式通过验证之后，咱们需要做用户名唯一性的验证(发送异步请求)
+                            axios({
+                              method:"post",
+                              url:"user",
+                              params:{
+                                flag:"checkUsername",
+                                username:this.username
+                              }
+                            }).then(response=>{
+                              if(response.data.flag){
+                              this.usernameErrMsg="√"
+                              }else{
+                              this.usernameErrMsg="用户名重复，请更换";
+                            }
+                            });
+                          }else{
+                            this.usernameErrMsg="用户名应为6~16位数组和字母组成"
+                            return false;
+                          }
+                        },
+            ② UserServlet创建checkUsername方法
+                protected void checkUsername(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                        //1. 接受请求参数
+                        String username = request.getParameter("username");
+                        //2. 去验证username是否存在
+                        User user = userService.checkUsername(username);
+                        //3. 处理响应(使用CommonResult工具)
+                        CommonResult ok =null;
+                        if(user==null){
+                            ok=CommonResult.ok();
+                        }else{
+                            ok=CommonResult.error();
+                        }
+                        //变为json字符串返回即可
+                        String s = new Gson().toJson(ok);
+                        System.out.println("s = " + s);
+                        response.setContentType("text/html;charset=utf-8");
+                        response.getWriter().write(s);
+                    }
+            需求：当用户名是重复的，注册是不能点击的，不重复是可以正常注册的
+            解决方案：
+                在Vue的数据模型中创建一个数据模型
+                    usernameFlag:false
+                在异步请求的回调函数内设置usernameFlag的值
+                    then(response=>{
+                      if(response.data.flag){
+                      this.usernameErrMsg="√";
+                      this.usernameFlag=true
+                      }else{
+                      this.usernameErrMsg="用户名重复，请更换";
+                      this.usernameFlag=false;
+                    }
+                点击注册按钮触发checkAll函数
+                    checkAll:function () {
+                          this.checkUsername()
+                          if(!(this.usernameFlag&this.checkPassword()&this.checkConfirmPassword()&this.checkEmail())){
+                            //阻止表单提交
+                            event.preventDefault()
+                          }
+                        }
+    3.2 加入购物车
+        实现方式：
+            cookie内
+            session内    √   目的：对ajax和session起到练习的作用
+                特点：session对象和客户端关联的，和当前登录人是无关联的(登录和不登录都是可以的)
+            数据库内    目前电商的方式(关系型数据库、非关系型数据库->redis)
+                和当前登录人有关系的
+        把购物车看作一个对象，将购物车的信息都存储在该对象内，再将对象放在session内
+        即将分析购物车内都存在什么信息？
+            n个购物项(关于书的信息，数量，书的金额都在购物项内)
+            总数量
+            总金额
+        购物项内都存在什么信息？
+            书的信息
+            数量
+            金额
+        ① 创建购物项类和购物车类
+            public class CartItem {
+                private Book book; //书的图片、名字、单价book对象内都存在
+                private Integer count; //这本书在购物车中的数量
+                private Double amount;  //这本书在购物车中的金额(可以通过运算算出来的book.getPrice()*count)
+            }
+            public class Cart {
+                //n个购物项(Map集合或者List集合)
+                private Map<Integer,CartItem> map=new HashMap<>();
+                private Integer totalCount;//购物车的总数量(可以通过运算得到)
+                private Double totalAmount;//购物车的总金额(可以通过运算得到)
+            }
+        添加一本书，将书的信息放在CartItem对象内，将CartItem对象放在Cart对象的map集合内
+        将Map集合放在session内
+
+        ② CartItem中创建get、set方法和构造器：
+            amount是不需要外界传进来，因为可以计算得到！
+            public void setCount(Integer count) {
+                    this.count = count;
+                    //设置数量，将amount算出来
+                    this.amount=book.getPrice()*this.count;
+                }
+            public void setBook(Book book) {
+                    this.book = book;
+                    //设置图书的时候，计算金额
+                    this.amount=this.book.getPrice()*this.count;
+                }
+            public CartItem(Book book, Integer count) {
+                    this.book = book;
+                    this.count = count;
+                    //有参构造器，计算amount
+                    this.amount=book.getPrice()*this.count;
+                }
+        ③ Cart类，暂时不需要get/set/构造器
+        ④ 加入购物车的实现思路
+            a. 本浏览器第一次点击加入购物车的按钮(session对象内是没有购物车对象的)
+                创建Cart对象(map就创建好了)，将图书的信息封装成CartItem对象，在将CartItem对象
+                存储在Cart对象的map集合内，将Cart对象放在session内
+            b. 第二次点击不同的书的加入购物车
+                从session内获得Cart对象，新建CartItem对象，将书的信息封装到CartItem内，
+                将CartItem添加到Cart对象的map集合内
+            c. 第二次点击的是相同的书的接入购物车
+                从session内获得Cart对象，然后从Cart对象的map集合内，拿到CartItem对象
+                对该对象的数量进行++操作
+        ⑤ 加入购物车实现步骤：
+            搭建Vue和axios的环境：
+                <script src="static/script/vue.js"></script>
+                <script src="static/script/axios.min.js"></script>
+            a. 找到加入购物车的超链接(通过异步的方式去添加)
+                绑定了单击事件，并将书的id设置给button按钮的name属性值
+                <button @click="addCart" th:name="${book.bookId}">加入购物车</button>
+            b. 创建addCart函数，发送异步请求      
+
+
+
+
+
+
+
+    3.3 购物车的查看
+
+
+
+
+
+
+
+
+
+
+
+
+
+

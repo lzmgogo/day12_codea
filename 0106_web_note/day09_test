@@ -1,0 +1,424 @@
+1. 士兵的增删改查练习
+    1.1 准备工作
+        ① 创建表格
+        ② 创建javaBean
+        ③ 导入jar包(mysql驱动包、数据库连接池、dbutils、beanutils、thymeleaf)
+        ④ 操作数据库的工具类(JdbcTools、BaseDaoImpl、druid.properties、ViewBaseServlet)
+        ⑤ 配置视图的前缀和后缀
+    1.2 首页的展示
+        ① 创建ToIndexPageServlet,转发到index.html
+            public class ToIndexPageServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    this.processTemplate("index",request,response);
+                }
+            }
+        ② 创建index.html
+            <input type="button" value="点击显示所有士兵信息">
+    1.3 士兵的查询
+        ① 点击按钮发送请求到ShowAllSoldierServlet
+            <a href="showAll"><input type="button" value="点击显示所有士兵信息"/></a>
+        ② 创建ShowAllSoldierServlet
+            public class ShowAllSoldierServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 获得请求参数
+                    //2. 调用业务层处理业务
+                    SoldierService soldierService=new SoldierServiceImpl();
+                    List<Soldier> soldiers = soldierService.showAll();
+                    //3. 给响应
+                    request.setAttribute("soldiers",soldiers);
+                    this.processTemplate("showAllSoldier",request,response);
+                }
+            }
+        ③ 创建SoldierService
+            public class SoldierServiceImpl implements SoldierService {
+                private SoldierDao soldierDao=new SoldierDaoImpl();
+                @Override
+                public List<Soldier> showAll() {
+                    return soldierDao.findAll();
+                }
+            }
+        ④ 创建SoldierDao
+            public class SoldierDaoImpl extends BaseDaoImpl implements SoldierDao {
+                @Override
+                public List<Soldier> findAll() {
+                    String sql="SELECT soldier_id soldierId,soldier_name soldierName,soldier_weapon soldierWeapon FROM t_soldier";
+                    return this.getList(Soldier.class,sql);
+                }
+            }
+        ⑤ 创建showAllSoldier.html
+            <!DOCTYPE html>
+            <html lang="en" xmlns:th="http://www.thymeleaf.org">
+            <head>
+                <base th:href="@{/}">
+                <meta charset="UTF-8">
+                <title>Title</title>
+            </head>
+            <body>
+                <table border="1" align="center" width="500px">
+                    <tr>
+                        <td colspan="5" align="center">
+                            <h1>所有士兵信息</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>编号</th>
+                        <th>姓名</th>
+                        <th>武器</th>
+                        <th>删除</th>
+                        <th>编辑</th>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(soldiers)}">
+                        <td colspan="5" align="center">
+                            <b>没有士兵信息，请添加！</b>
+                        </td>
+                    </tr>
+                    <tr th:unless="${#lists.isEmpty(soldiers)}" th:each="soldier,status : ${soldiers}">
+                        <td th:text="${soldier.soldierId}"></td>
+                        <td th:text="${soldier.soldierName}"></td>
+                        <td th:text="${soldier.soldierWeapon}"></td>
+                        <td >
+                            <a href="">删除</a>
+                        </td>
+                        <td >
+                            <a href="">编辑</a>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+    1.4 士兵的新增
+        ① 在列表展示页面创建超链接，添加士兵信息
+            <a href="toAddSoldier">添加士兵信息</a>
+        ② 创建ToAddSoldierPageServlet
+            public class ToAddSoldierPageServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    this.processTemplate("addSoldier",request,response);
+                }
+            }
+        ③ 创建addSoldier.html
+            <!DOCTYPE html>
+            <html lang="en" xmlns:th="http://www.thymeleaf.org">
+            <head>
+                <base th:href="@{/}">
+                <meta charset="UTF-8">
+                <title>添加页面</title>
+            </head>
+            <body>
+                <form action="addSoldier" method="post">
+                    姓名：<input type="text" name="soldierName"/><br/>
+                    武器：<input type="text" name="soldierWeapon"/><br/>
+                    <input type="submit" value="添加">
+                </form>
+            </body>
+            </html>
+        ④ 创建AddSoldierServlet
+            public class AddSoldierServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    request.setCharacterEncoding("utf-8");
+                    //1. 获得请求参数
+                    Map<String, String[]> parameterMap = request.getParameterMap();
+                    Soldier soldier=new Soldier();
+                    try {
+                        BeanUtils.populate(soldier,parameterMap);
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    } catch (InvocationTargetException e) {
+                        e.printStackTrace();
+                    }
+                    //2. 调用业务层处理业务
+                    SoldierService soldierService=new SoldierServiceImpl();
+                    boolean b = soldierService.saveSoldier(soldier);
+                    //3.  给响应(添加完后应该取到哪里？士兵展示页面)
+                    if(b){
+                        //this.processTemplate("showAllSoldier",request,response);
+                        //在执行一次ShowAllSoldierServlet
+                        //request.getRequestDispatcher("/showAll").forward(request,response);转发的话，网址不变，怕刷新
+                        response.sendRedirect(request.getContextPath()+"/showAll");
+                    }
+                }
+            }
+        ⑤ SoldierService内创建方法
+            @Override
+                public boolean saveSoldier(Soldier soldier) {
+                    return soldierDao.addSoldier(soldier);
+                }
+        ⑥ SoldierDao创建方法
+            @Override
+                public boolean addSoldier(Soldier soldier) {
+                    String sql="insert into t_soldier values(null,?,?)";
+                    return this.update(sql,soldier.getSoldierName(),soldier.getSoldierWeapon())>0;
+                }
+    1.5 删除信息
+        ① 找到删除的超链接，发送请求到DeleteSoldierServlet
+            <a th:href="@{/deleteSoldier(id=${soldier.soldierId})}">删除</a>
+        ② 创建DeleteSoldierServlet
+            public class DeleteSoldierServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 获得请求参数
+                    String id = request.getParameter("id");
+                    //2. 调用业务层处理业务
+                    SoldierService soldierService=new SoldierServiceImpl();
+                    boolean b = soldierService.removeSoldier(id);
+                    //3. 给响应
+                    if(b){
+                        response.sendRedirect(request.getContextPath()+"/showAll");
+                    }
+                }
+            }
+        ③ SoldierService
+            @Override
+                public boolean removeSoldier(String id) {
+                    return soldierDao.removeSoldier(id);
+                }
+        ④ SoldierDao
+             @Override
+                public boolean removeSoldier(String id) {
+                    String sql="delete from t_soldier where soldier_id=?";
+                    return this.update(sql,id)>0;
+                }
+    1.6 修改信息
+        ① 找到修改的超链接，点击修改，跳转至updateSoldier.html
+            <a th:href="@{/toUpdate(id=${soldier.soldierId})}">编辑</a>
+        ② 创建ToUpdateSoldierPageServlet
+            public class ToUpdateSoldierPageServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    String id = request.getParameter("id");
+                    SoldierService soldierService=new SoldierServiceImpl();
+                    Soldier soldierById = soldierService.findSoldierById(id);
+                    request.setAttribute("soldier",soldierById);
+                    this.processTemplate("updateSoldier",request,response);
+                }
+            }
+        ③ SoldierService
+             @Override
+                public Soldier findSoldierById(String id) {
+                    return soldierDao.findSoldierById(id);
+                }
+        ④ SoldierDao
+            @Override
+                public Soldier findSoldierById(String id) {
+                    String sql="SELECT soldier_id soldierId,soldier_name soldierName,soldier_weapon soldierWeapon FROM t_soldier where soldier_id=?";
+                    return this.getBean(Soldier.class,sql,id);
+                }
+        ⑤ 创建updateSoldier.html
+            <!DOCTYPE html>
+            <html lang="en" xmlns:th="http://www.thymeleaf.org">
+            <head>
+                <base th:href="@{/}">
+                <meta charset="UTF-8">
+                <title>修改页面</title>
+            </head>
+            <body>
+            <form action="update" method="post">
+                <input type="hidden" name="soldierId" th:value="${soldier.soldierId}">
+                姓名：<input type="text" name="soldierName" th:value="${soldier.soldierName}"/><br/>
+                武器：<input type="text" name="soldierWeapon" th:value="${soldier.soldierWeapon}"/><br/>
+                <input type="submit" value="修改">
+            </form>
+            </body>
+            </html>
+        ⑥ 点击修改按钮，访问UpdateSoldierServlet
+            public class UpdateSoldierServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    Map<String, String[]> parameterMap = request.getParameterMap();
+                    Soldier soldier=new Soldier();
+                    try {
+                        BeanUtils.populate(soldier,parameterMap);
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    } catch (InvocationTargetException e) {
+                        e.printStackTrace();
+                    }
+
+                    SoldierService soldierService=new SoldierServiceImpl();
+                    boolean b = soldierService.updateSoldier(soldier);
+
+                    if(b)
+                        response.sendRedirect(request.getContextPath()+"/showAll");
+                }
+            }
+        ⑦ SoldierService
+            @Override
+                public boolean updateSoldier(Soldier soldier) {
+                    return soldierDao.updateSoldier(soldier);
+                }
+        ⑧ SoldierDao
+            @Override
+                public boolean updateSoldier(Soldier soldier) {
+                    String sql="update t_soldier set soldier_name=?,soldier_weapon=? where soldier_id=?";
+                    return this.update(sql,soldier.getSoldierName(),soldier.getSoldierWeapon(),soldier.getSoldierId())>0;
+                }
+2. 对Servlet优化(汇总)
+    2.1 每个请求都请求soldier,为了区分不同请求执行不同的代码，要求每个请求都携带一个key值固定的请求参数
+          soldier?flag=showAll
+          soldier?flag=toAddSoldier
+          soldier?flag=addSoldier
+          ...
+          protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                  //1. 获得flag的参数，进行判断
+                  String flag = request.getParameter("flag");
+                  System.out.println("这是Servlet优化第一个级别代码...");
+                  if(flag.equals("showAll")){
+                      showAll(request,response);
+                  }else if(flag.equals("toAddSoldier")){
+                      toAddSoldier(request,response);
+                  }else if(flag.equals("addSoldier")){
+                      addSoldier(request,response);
+                  }else if(flag.equals("deleteSoldier")){
+                      //执行DeleteSoldierServlet的代码
+                      deleteSoldier(request,response);
+                  }else if(flag.equals("toUpdate")){
+                      //执行ToUpdateSoldierPageServlet的代码
+                      toUpdate(request,response);
+                  }else if(flag.equals("update")){
+                      //执行UpdateSoldierServlet的代码
+                      update(request,response);
+                  }
+              }
+    2.2 如果flag的值和调用方法的方法名一致的话，可以采用反射的知识点再进行优化
+        ① 通过反射获得到想要调用的方法对象
+        ② 调用该方法即可
+
+        public class BaseServlet extends ViewBaseServlet{
+            protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                doGet(request,response);
+            }
+            protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                //1. 获得flag的参数，进行判断
+                String flag = request.getParameter("flag");
+                System.out.println("这是Servlet优化第一个级别代码...");
+                //通过反射获得想要调用的方法对象   soldier?flag=showAll   soldier?flag=toAddSoldier
+                Class c = this.getClass();//c就是SoldierServlet类的类信息
+                try {
+                    Method method = c.getDeclaredMethod(flag, HttpServletRequest.class, HttpServletResponse.class);
+                    //调用这个函数
+                    method.setAccessible(true);//暴力访问
+                    method.invoke(this,request,response);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+    创建Servlet的步骤就是：
+        ① 新建一个类
+        ② 继承BaseServlet(目的是使用该类中的doGet和doPost方法)
+        ③ 该类中只需要创建和业务相关的方法就可以了(千万不能重写doGet或者doPost)
+        ④ web.xml配置访问路径
+
+
+3. 书城项目第三阶段
+    3.1 迁移书城项目第二阶段到第三阶段
+    3.2 对部分内容做位置调整
+        pages需要放在web-inf下
+        index.html放在pages下
+        static还是直接在web下
+    3.3 添加Thymeleaf的支持
+        jar包、ViewBaseServlet、BaseServlet、配置前缀后缀
+    3.4 首页的展示
+        ① 创建ToIndexPageServlet
+            public class ToIndexPageServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    this.processTemplate("index",request,response);
+                }
+            }
+    3.5 注册功能
+        ① 找到注册超链接，点击跳转至注册页面
+            <a href="user?flag=toRegistPage" class="register">注册</a>
+        ② 创建UserServlet
+            public class UserServlet extends BaseServlet {
+                protected void toRegistPage(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    this.processTemplate("user/regist",request,response);
+                }
+            }
+        ③ regist.html
+            添加thymelaf的名称空间和base标签
+            将form表单的action属性设置为
+                <form action="user?flag=regist" @submit="checkAll" method="post">
+        ④ UserServlet中创建regist方法
+            protected void regist(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 获得请求参数
+                    Map<String, String[]> parameterMap = request.getParameterMap();
+                    User user=new User();
+                    try {
+                        BeanUtils.populate(user,parameterMap);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    //2. 处理注册的业务(暂时不考虑用户名重复的问题)
+                    //将信息添加到数据库即可(密码的加密问题)
+                    UserService userService=new UserServiceImpl();
+                    boolean b = userService.regist(user);
+                    //3. 给响应(页面跳转)
+                    if(b){
+                        request.setAttribute("username",user.getUsername());
+                        this.processTemplate("user/regist_success",request,response);
+                    }//目前不考虑注册失败的情况
+                }
+    3.6 登录功能
+        ① 找到登录的超链接，点击取到登录页面
+             <a href="user?flag=toLoginPage" class="login">登录</a>
+        ② UserServlet中创建toLoginPage
+            protected void toLoginPage(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    this.processTemplate("user/login",request,response);
+                }
+        ③ 点击登录，提交登录表单
+            <form action="user?flag=login" @submit="checkLogin" method="post">
+        ④ UserServlet中创建login方法
+            protected void login(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 获得参数
+                    String username = request.getParameter("username");
+                    String password = request.getParameter("password");
+                    //2. 调用业务层进行业务处理
+                    UserService userService=new UserServiceImpl();
+                    User login = userService.login(username, password);
+                    //3. 给响应
+                    if(login==null){
+                        //登录失败：用户名的回显、错误信息的提示
+                        request.setAttribute("username",username);
+                        request.setAttribute("password",password);
+                        request.setAttribute("errMsg","用户名或密码错误");
+                        this.processTemplate("user/login",request,response);
+                    }else{
+                        request.setAttribute("user",login);
+                        this.processTemplate("user/login_success",request,response);
+                    }
+                }
+        ⑤ 如果登录成功，共享user对象，在login_success页面取值
+            <span>欢迎<span class="um_span" th:text="${user.username}">张总</span>光临尚硅谷书城</span>
+        ⑥ 如果登录失败，应该做用户名密码的回显操作，和错误信息的提示
+            login.html中遇到Vue渲染和Thymeleaf渲染冲突的情况，最终导致Thymeleaf渲染失败
+            解决方案：在Vue的数据模型内渲染Thymeleaf中的数据
+                data:{
+                        username:"[[${username}]]",
+                        password:"[[${password}]]",
+                        errMsg:"[[${errMsg==null?'请输入用户名和密码':errMsg}]]"
+                      },
+                在Vue的数据模型内渲染Thymeleaf的数据语法： [[thymeleaf的表达式]]
+
+

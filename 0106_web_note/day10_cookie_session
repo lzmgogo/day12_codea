@@ -1,0 +1,321 @@
+1. 书城项目第三阶段
+    1.1 登录注册完善
+    1.2 页面中公共代码片段的提取
+        book_manager.html  book_add.html book_edit.html order_manager.html
+        ① 新建一个页面,将公共内容粘贴过去
+        ② 为这个内容起个名字
+            <div class="header-right" th:fragment="header">
+                <a href="book_manager.html" class="order">图书管理123</a>
+                <a href="#" class="destory">订单管理</a>
+                <a href="../index.html" class="gohome">返回商城</a>
+            </div>
+        ③ 其他页面做引入操作
+            <div class="header-right" th:include="manager/base::header"></div>
+    1.3 准备工作
+        ① 创建图书的表格
+        ② 创建JavaBean
+    1.4 点击后台管理，进行图书列表的展示
+        ① 找到后台管理的超链接，点击访问BookServlet
+            <a href="book?flag=findAllBook" class="admin">后台管理</a>
+        ② 创建BookServlet
+            public class BookServlet extends BaseServlet {
+                private BookService bookService=new BookServiceImpl();
+                protected void findAllBook(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 获得请求参数
+                    //2. 调用业务层处理业务
+                    List<Book> allBook = bookService.findAllBook();
+                    request.setAttribute("books",allBook);
+                    //3. 给响应
+                    this.processTemplate("manager/book_manager",request,response);
+                }
+            }
+        ③ BookService
+            public class BookServiceImpl implements BookService {
+                private BookDao bookDao=new BookDaoImpl();
+                @Override
+                public List<Book> findAllBook() {
+                    return bookDao.findAllBook();
+                }
+            }
+        ④ BookDao
+            public class BookDaoImpl extends BaseDaoImpl implements BookDao {
+                private String sql=" id bookId,title bookName,author,price,sales,stock,img_path imgPath ";
+                @Override
+                public List<Book> findAllBook() {
+                    String sql="select "+this.sql+" from books";
+                    return this.getList(Book.class,sql);
+                }
+            }
+    1.5 添加图书
+        ① 找到添加图书的按钮，点击跳转至添加图书的页面
+            <a href="book?flag=toAddBookPage">添加图书</a>
+        ② 去BookServlet中创建toAddBookPage方法
+            protected void toAddBookPage(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    this.processTemplate("manager/book_add",request,response);
+                }
+        ③ 对页面中的表单进行完善工作
+            a. 添加name属性值
+            b. 完善action、method属性
+                <form action="book?flag=addBook" method="post">
+        ④ 去BookServlet中创建addBook方法
+            protected void addBook(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 获得请求参数
+                    Map<String, String[]> parameterMap = request.getParameterMap();
+                    Book book=new Book();
+                    try {
+                        BeanUtils.populate(book,parameterMap);
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    } catch (InvocationTargetException e) {
+                        e.printStackTrace();
+                    }
+                    //2. 调用业务层处理业务
+                    boolean b = bookService.saveBook(book);
+                    //3. 给响应
+                    if(b){
+                        //让浏览器再发一次请求到BookServlet中找findAllBook方法
+                        response.sendRedirect(request.getContextPath()+"/book?flag=findAllBook");
+                    }
+                }
+        ⑤ BookService
+            @Override
+                public boolean saveBook(Book book) {
+                    return bookDao.saveBook(book);
+                }
+        ⑥ BookDao
+            @Override
+                public boolean saveBook(Book book) {
+                    String sql="insert into books values(null,?,?,?,?,?,?)";
+                    return this.update(sql,book.getBookName(),book.getAuthor(),book.getPrice(),book.getSales(),book.getStock(),book.getImgPath())>0;
+                }
+    1.6 删除图书
+        ① 找到删除的超链接，点击删除访问BookServlet,把书的id传递过去
+            <a th:href="@{/book(flag='deleteBook',id=${book.bookId})}" class="del">删除</a>
+        ② 去BookServlet内创建deleteBook方法
+            protected void deleteBook(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    String id = request.getParameter("id");
+                    boolean b = bookService.deleteBookById(id);
+                    if(b){
+                        response.sendRedirect(request.getContextPath()+"/book?flag=findAllBook");
+                    }
+                }
+        ③ BookService
+            @Override
+                public boolean deleteBookById(String id) {
+                    return bookDao.deleteBookById(id);
+                }
+        ④ BookDao
+            @Override
+                public boolean deleteBookById(String id) {
+                    String sql="delete from books where id=?";
+                    return this.update(sql,id)>0;
+                }
+    1.7 修改图书
+        ① 找到修改的超链接，点击去到修改页面
+            <a th:href="@{/book(flag='toUpdateBookPage',id=${book.bookId})}">修改</a>
+        ② 去到BookServlet中创建toUpdateBookPage
+            protected void toUpdateBookPage(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    String id = request.getParameter("id");
+                    Book bookById = bookService.findBookById(id);
+                    request.setAttribute("book",bookById);
+                    this.processTemplate("manager/book_edit",request,response);
+                }
+        ③ 跳转至book_edit页面
+            a. 将书的信息显示在表单内(id和imgPage是通过隐藏域显示)
+            b. 对所有表单项添加name属性
+            c. 需要设置form表单的action/method
+                <form action="book?flag=updateBook" method="post">
+        ④ 去到BookServlet中创建updateBook
+            protected void updateBook(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    Map<String, String[]> parameterMap = request.getParameterMap();
+                    Book book=new Book();
+                    try {
+                        BeanUtils.populate(book,parameterMap);
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    } catch (InvocationTargetException e) {
+                        e.printStackTrace();
+                    }
+                    boolean b = bookService.updateBook(book);
+                    if(b){
+                        response.sendRedirect(request.getContextPath()+"/book?flag=findAllBook");
+                    }
+                }
+        ⑤ BookService
+            @Override
+                public boolean updateBook(Book book) {
+                    return bookDao.updateBook(book);
+                }
+        ⑥ BookDao
+            @Override
+                public boolean updateBook(Book book) {
+                    String sql="update books set title=?,author=?,price=?,sales=?,stock=?,img_path=? where id=?";
+                    return this.update(sql,book.getBookName(),book.getAuthor(),book.getPrice(),book.getSales(),book.getStock(),book.getImgPath(),book.getBookId())>0;
+                }
+    1.8 前台图书的查询操作
+        ① ToIndexPageServlet
+            public class ToIndexPageServlet extends ViewBaseServlet {
+                protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    doGet(request,response);
+                }
+                protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    //1. 查到所有图书数据
+                    BookService bookService=new BookServiceImpl();
+                    List<Book> allBook = bookService.findAllBook();
+                    //2. 放在请求域内
+                    request.setAttribute("books",allBook);
+                    this.processTemplate("index",request,response);
+                }
+            }
+        ② index.html内做数据渲染
+            <div class="list-item" th:each="book,status : ${books}">
+                <img th:src="${book.imgPath}" alt="">
+                <p>书名:<span th:text="${book.bookName}">活着</span></p>
+                <p>作者:<span th:text="${book.author}">余华</span></p>
+                <p>价格:￥<span th:text="${book.price}">66.6</span></p>
+                <p>销量:<span th:text="${book.sales}">230</span></p>
+                <p>库存:<span th:text="${book.stock}">1000</span></p>
+                <button>加入购物车</button>
+              </div>
+2. 会话
+      一次交互(一次请求+一次响应)
+      一次会话(n次交互)
+      主要功能：在会话过程中起到共享数据的作用
+    2.1 Cookie  （客户端的会话技术）
+        数据存储在客户端
+        ① 如何将数据保存到cookie内
+            创建Cookie对象并设置数据
+               Cookie cookie01=new Cookie("adminKey","adminValue");
+            将cookie添加到响应报文内
+               response.addCookie(cookie01);
+            cookie数据的特点：
+                a. 一旦cookie被保存到客户端，在以后的每次请求中都会带着所有的cookie
+                b. 此时添加cookie被称为瞬时cookie,浏览器关闭cookie就消失(浏览器关闭会话就会结束)
+        ② 如何将数据从cookie中取出来
+            Cookie[] cookies = request.getCookies();
+        ③ cookie中的数据的有效时间
+            在添加到响应之前之前，需要设置一个时间
+            cookie01.setMaxAge(60);//单位是秒
+        ④ 设置cookie的携带条件
+            设置什么请求路径下携带该cookie
+            在添加之前设置一个请求路径
+            cookie01.setPath(request.getContextPath()+"/user");//设置一个uri
+            设置cookie01只有在访问当前项目下的user下的请求时才会携带
+
+    2.2 练习
+        登录页面：记住用户和密码
+        ① 搭建thymeleaf的环境
+            jar包
+            粘贴ViewBaseServlet
+            配置前缀和后置
+        ② 准备登录页面
+            <!DOCTYPE html>
+            <html lang="en" xmlns:th="http://www.thymeleaf.org">
+            <head>
+                <base th:href="@{/}">
+                <meta charset="UTF-8">
+                <title>登录页面</title>
+            </head>
+            <body>
+                <form action="user?flag=login" method="post">
+                    username:<input type="text" name="username" th:value="${username}"/><br>
+                    password:<input type="password" name="password" th:value="${password}"/><br>
+                    <input type="checkbox" name="confirm"/>记住用户名和密码<br>
+                    <input type="submit" value="登录"/>
+                </form>
+            </body>
+            </html>
+        ③ UserServlet
+            public class UserServlet extends BaseServlet {
+                protected void toLoginPage(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    String username="";
+                    String password="";
+                    Cookie[] cookies = request.getCookies();
+                    if(cookies!=null){
+                        for (Cookie cookie : cookies) {
+                            if(cookie.getName().equals("username")){
+                                username=cookie.getValue();
+                            }
+                            if(cookie.getName().equals("password")){
+                                password=cookie.getValue();
+                            }
+                        }
+                    }
+                    request.setAttribute("username",username);
+                    request.setAttribute("password",password);
+                    this.processTemplate("login",request,response);
+                }
+
+                protected void login(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                    String username = request.getParameter("username");
+                    String password = request.getParameter("password");
+                    PrintWriter writer = response.getWriter();
+                    if(username.equals("admin")&&password.equals("root")){
+                        //登录成功
+                        String confirm = request.getParameter("confirm");
+                        System.out.println("confirm = " + confirm);
+                        if(confirm!=null){
+                            //将用户名和密码保存到cookie内
+                            Cookie usernameCookie=new Cookie("username",username);
+                            Cookie passwordCookie=new Cookie("password",password);
+                            usernameCookie.setMaxAge(60*60);
+                            response.addCookie(usernameCookie);
+                            response.addCookie(passwordCookie);
+                        }
+                        writer.write("success");
+                    }else{
+                        //登录失败
+                        writer.write("error");
+                    }
+                }
+
+            }
+
+    2.3 Session  （服务器端的会话技术）
+        数据存储在服务器端
+        服务器会为每一个客户端创建一个Session对象，该客户端每次访问如果需要session对象，就返回之前创建的
+        服务器端的会话从第一次获得HttpSession对象开始的，至到HttpSession对象销毁结束
+        ① 得到HttpSession对象
+            request.getSession();
+        ② 设置共享数据
+            session.setAttribute("sessionMsg","sessionValue");
+        ③ 获得共享数据
+            Object sessionMsg = session.getAttribute("sessionMsg");
+        ④ 移除共享数据
+            session.removeAttribute("sessionMsg");
+
+        服务器是如何办到客户端和session对应关系？
+            是通过cookie办到的！session是依赖于cookie
+            当客户端第一次访问服务器，调用getSession(),新建一个session对象，并且设置一个cookie给浏览器(jsessionid)
+            当客户端第二次访问服务器，调用getSession()，就去获得请求中的jsessionid这个cookie,通过cookie的value值找到session对象
+
+        会话什么时候结束？
+            ① 客户端关闭(jsessionid这个cookie消失)
+            ② 强制失效
+                session.invalidate();//强制失效
+            ③ 自动失效(达到最大空闲时间)
+                默认时间是半小时(无操作，没有往服务器发送过请求)
+        getSession方法的工作原理
+            ① 判断请求中是否存在jsession这个cookie
+            ② 存在
+                ④ 拿着cookie的值去寻找session对象
+                ⑤ 找到了
+                    直接返回即可
+                ⑥ 找不到
+                    新建一个session对象，并且设置jsessionid这个cookie
+            ③ 不存在
+                新建一个session对象，并且设置jsessionid这个cookie
+
+
+
+
+
+
+
+
+
+
+
+
+
+

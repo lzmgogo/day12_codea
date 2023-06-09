@@ -1,0 +1,293 @@
+1. 作业
+    1.1 不带数据库的登录和注册
+        ① 登录
+           创建登录页面
+                <form action="" method="post">
+                    username:<input type="text" name="username"/><br/>
+                    password:<input type="password" name="password"/><br/>
+                    <input type="submit" value="登录">
+                </form>
+           创建LoginServlet
+                public class LoginServlet extends HttpServlet {
+                    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                        //1. 获得请求参数
+                        String username=request.getParameter("username");
+                        String password=request.getParameter("password");
+                        //2. 处理业务  3. 给出响应(页面跳转)
+                        if("admin".equals(username)&&"123456".equals(password)){
+                            //跳转至登录成功页面
+                            request.getRequestDispatcher("login_success.html").forward(request,response);
+                        }else{
+                            //跳转至登录失败页面
+                            request.getRequestDispatcher("login_error.html").forward(request,response);
+                        }
+                    }
+                    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                        doPost(request,response);
+                    }
+                }
+        ② 注册
+            创建注册的页面
+                <form action="" method="post">
+                    username:<input type="text" name="username"/><br/>
+                    password:<input type="password" name="password"/><br/>
+                    confirm password:<input type="password" name="password"/><br/>
+                    email:<input type="text" name="email"/><br/>
+                    <input type="submit" value="注册">
+                </form>
+            创建RegistServlet
+                public class RegistServlet extends HttpServlet {
+                    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                        //1. 获得请求参数
+                        String username = request.getParameter("username");
+                        String password = request.getParameter("password");
+                        String email = request.getParameter("email");
+                        //2. 处理注册的业务 3. 给响应
+                        if("admin".equals(username)){
+                            //注册失败
+                            request.getRequestDispatcher("regist_error.html").forward(request,response);
+                        }else{
+                            //注册成功
+                            request.getRequestDispatcher("regist_success.html").forward(request,response);
+                        }
+                    }
+                    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                        doPost(request,response);
+                    }
+                }
+    1.2  连接数据库的登录注册功能
+        ① 搭建环境
+            a. 导入jar包(数据库驱动包、数据库连接池、DBUtils)
+            b. 创建JDBCTools和BaseDao
+            c. 数据库连接池的配置文件
+            d. 创建users表格
+            e. 创建实体类（User）
+        ② 注册功能
+            a. 创建注册页面
+            b. 创建RegistServlet
+                public class RegistServlet extends HttpServlet {
+                    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                        //1. 获得请求参数
+                        String username = request.getParameter("username");
+                        String password = request.getParameter("password");
+                        String email = request.getParameter("email");
+                        User user=new User(0,username,password,email);
+                        //2. 处理注册的业务  3. 给响应
+                        UserDao userDao=new UserDaoImpl();
+                        User userByUsername = userDao.findUserByUsername(username);
+                        if(userByUsername==null){
+                            //可以注册
+                            userDao.addUser(user);
+                            request.getRequestDispatcher("regist_success.html").forward(request,response);
+                        }else{
+                            request.getRequestDispatcher("regist_error.html").forward(request,response);
+                        }
+                    }
+                    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                        doPost(request,response);
+                    }
+                }
+            c. 创建UserDaoImpl
+                public class UserDaoImpl extends BaseDaoImpl implements UserDao {
+                    @Override
+                    public User findUserByUsername(String username) {
+                        String sql="select * from users where username=?";
+                        return this.getBean(User.class,sql,username);
+                    }
+                    @Override
+                    public boolean addUser(User user) {
+                        String sql="insert into users values(null,?,?,?)";
+                        int update = this.update(sql, user.getUsername(), user.getPassword(), user.getEmail());
+                        if(update>0)
+                            return true;
+                        return false;
+                    }
+                }
+        ③ 登录功能
+            a. 创建login.html
+            b. 创建LoginServlet
+                public class LoginServlet extends HttpServlet {
+                    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                        //1. 获得请求参数
+                        String username=request.getParameter("username");
+                        String password=request.getParameter("password");
+                        //2. 处理业务   3. 给出响应(页面跳转)
+                        UserDao userDao=new UserDaoImpl();
+                        User userByUsername = userDao.findUserByUsername(username);
+                        if(userByUsername!=null){
+                            //说明用户名是对的，接下来验证密码
+                            if(userByUsername.getPassword().equals(password)){
+                                request.getRequestDispatcher("login_success.html").forward(request,response);
+                            }else{
+                                //说明密码不对
+                                request.getRequestDispatcher("login_error.html").forward(request,response);
+                            }
+                        }else{
+                            //说明用户名不对
+                            request.getRequestDispatcher("login_error.html").forward(request,response);
+                        }
+                    }
+                    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                        doPost(request,response);
+                    }
+                }
+            c.  创建UserDao
+                public class UserDaoImpl extends BaseDaoImpl implements UserDao {
+                    @Override
+                    public User findUserByUsername(String username) {
+                        String sql="select * from users where username=?";
+                        return this.getBean(User.class,sql,username);
+                    }
+                    @Override
+                    public boolean addUser(User user) {
+                        String sql="insert into users values(null,?,?,?)";
+                        int update = this.update(sql, user.getUsername(), user.getPassword(), user.getEmail());
+                        if(update>0)
+                            return true;
+                        return false;
+                    }
+                }
+    1.3 BeanUtils
+        功能：自动将map集合中的数据映射到javaBean内
+        条件：Map集合中的key值必须和javaBean中的属性名一致的
+        使用步骤：
+            ① 导入jar包
+            ② 直接使用BeanUtils调用方法即可
+2. 处理请求和响应的两个接口
+    2.1 HttpServletRequest
+        ① 获得请求头信息
+        ② 获得url路径信息
+        ③ 获得请求方式
+        ④ 获得请求参数
+        ⑤ 转发
+            我们进行页面跳转的主要手段之一
+                a. 转发到第二个Servlet
+                b. 转发到一个网页
+            使用步骤：
+                a. 获得转发器对象
+                    RequestDispatcher requestDispatcher = request.getRequestDispatcher(目标路径);
+                b. 进行转发操作(将request和response需要传递过去)
+                    requestDispatcher.forward(request,response);
+            原理：
+                SecondServlet能否获得到请求中的请求参数?
+                    可以的，因为转发将request对象传递过去了
+            request可以作为域对象共享数据
+                应用域（ServletContext）：数据共享范围是整个web应用
+                请求域(HttpServletRequest) ：数据共享的范围是本次请求，当响应结束了，请求也结束
+                    setAttribute(String key,Object value);
+                    getAttribute(String key)
+                    removeAttribute(String key)
+    2.2 HttpServletResponse
+            ① 通过输出流将响应数据输出给客户端
+                PrintWriter writer = response.getWriter();
+                writer.write("<h1>success</h1>");
+            ② 可以设置响应的乱码(添加响应头的方式)
+                response.addHeader("Content-Type","text/html;charset=utf-8");
+                简写：response.setContentType("text/html;charset=utf-8");
+            ③ 重定向
+                页面跳转的主要手段之一
+                a. 重定向至另一个Servlet
+                    response.sendRedirect("second");
+                b. 重定向至页面
+                    response.sendRedirect("admin.html");
+               当发送到firstServlet请求中的请求参数，SecondServlet是否能获取到？
+                 取不到：因为发送了第二次请求(第一次请求中的请求参数和第二次请求毫无关系)
+               重定向能否使用请求域共享数据？
+                  不可以
+    2.3 转发和重定向的区别
+                        转发          重定向
+    浏览器的感知         感知不到         感知到
+    网址栏的网址         不变             会改变
+    请求的次数           一次请求         两次请求
+    请求域的共享数据      可以            不可以
+    发起者               request         response
+    WEB-INF             可以访问的       不可以访问的
+        WEB-INF下的资源有一个特性：客户端是访问不到的，但是服务器可以
+        将不想让客户端直接访问的资源，就可以放在WEB-INF下
+    目标资源             本服务器的资源     其他服务器资源
+
+3. 请求和响应乱码的处理
+    3.1 请求乱码
+        get请求：tomcat8已经处理好了
+        post请求：中文乱码问题
+            在所有的获取请求参数之前，设置字符集
+            request.setCharacterEncoding("utf-8");
+    3.2 响应乱码
+        ① 获得输出流直接写数据
+            response.addHeader("Content-Type","text/html;charset=utf-8");
+            简写：response.setContentType("text/html;charset=utf-8");
+        ② 转发
+        ③ 重定向
+4. web项目的路径问题  ★
+    4.1 url  -->  统一资源定位符(从整个网络环境中找一个资源)
+        http://localhost:9999/day06_servlet_war_exploded/login.html
+
+        相对路径：也是相对于url去作为参照物
+        绝对路径：url就是绝对路径(从ip地址开始)
+
+        涉及到路径的位置：
+            超链接、表单、link、img、script...   网页内
+            转发
+            重定向
+            web.xml
+        在web项目内，路径前添加/,采用绝对路径
+        建议使用绝对路径
+        /代表什么含义：
+            http://localhost:9999/day06_servlet_war_exploded/login.html
+            a. 服务器解析   当前项目下
+                    http://localhost:9999/day06_servlet_war_exploded/
+                web.xml
+                服务器
+            b. 浏览器解析   当前服务器下
+                    http://localhost:9999/
+                网页内所有的路径
+                重定向
+        web.xml中的/
+            <servlet>
+                <servlet-name>LoginServlet</servlet-name>
+                <servlet-class>com.atguigu.servlet.LoginServlet</servlet-class>
+            </servlet>
+            <servlet-mapping>
+                <servlet-name>LoginServlet</servlet-name>
+                <url-pattern>/login</url-pattern>
+            </servlet-mapping>
+            <url-pattern>/login</url-pattern>
+                设置LoginServlet的访问路径是直接从项目下访问login
+            <url-pattern>/abc/login</url-pattern>
+                设置LoginServlet的访问路径是从项目下找abc,从abc下找login就能找到LoginServlet
+        网页内所有的路径
+            案例一：
+                login.html的请求路径：http://localhost:9999/day06_servlet_war_exploded/login.html
+                   <form action="./login" method="post">
+                http://localhost:9999/day06_servlet_war_exploded/login
+            案例二：login.html的请求路径：http://localhost:9999/day06_servlet_war_exploded/pages/login.html
+                    <form action="./login" method="post">
+                 http://localhost:9999/day06_servlet_war_exploded/pages/login
+        转发：
+            request.getRequestDispatcher("/second").forward(request,response);
+                http://localhost:9999/day06_servlet_war_exploded/second
+        重定向：
+            response.sendRedirect("/day06_servlet_war_exploded/second");
+            response.sendRedirect(request.getContextPath()+"/second");
+                http://localhost:9999/day06_servlet_war_exploded/second
+        路径前加/，就是使用绝对路径
+        /的含义，由服务器解析就是当前项目下，由浏览器解析就是当前服务器下
+        网页内和重定向路径的/由浏览器解析，转发和web.xml中的/由服务器解析
+
+    4.2 uri  -->  统一资源标识符(从当前项目下找一个资源)
+        /day06_servlet_war_exploded/login.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

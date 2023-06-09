@@ -1,0 +1,218 @@
+1. HTTP
+    超文本传输协议：它是一种详细规定了浏览器和万维网服务器之间互相通信的规则
+    规定了传输数据的格式
+    HTTP协议的版本：1.1
+    客户端往服务器端发送数据，请求报文
+    服务器往客户端发送数据，  响应报文
+    报文的格式：
+        报文首行
+        报文头部
+        空行
+        报文的主体
+    1.1 请求报文的格式 （request）
+        请求首行
+            请求方式    请求路径                              协议  版本
+            GET /day05_http_servlet_war_exploded/admin.html HTTP/1.1
+        请求头
+            Host: localhost:9999
+            Connection: keep-alive
+            Cache-Control: max-age=0
+            sec-ch-ua: " Not A;Brand";v="99", "Chromium";v="98", "Google Chrome";v="98"
+            sec-ch-ua-mobile: ?0
+            sec-ch-ua-platform: "Windows"
+            Upgrade-Insecure-Requests: 1
+            User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36
+            客户端的产品信息
+            Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+            Sec-Fetch-Site: none
+            Sec-Fetch-Mode: navigate
+            Sec-Fetch-User: ?1
+            Sec-Fetch-Dest: document
+            Accept-Encoding: gzip, deflate, br
+            Referer: http://localhost:9999/day05_http_servlet_war_exploded/admin.html
+            请求的来源：防盗链
+            Accept-Language: zh-CN,zh;q=0.9
+            Cookie: Idea-5083c5c3=66e5f757-3f90-4449-b1ab-0b5a62d33e8f
+            If-None-Match: W/"156-1646441736888"
+            If-Modified-Since: Sat, 05 Mar 2022 00:55:36 GMT
+        空行
+        请求体
+            get请求：没有请求体，如果有请求参数需要传递，拼接在网址栏(第一对数据是?,后面的所有数据都是&)
+                大小的限制
+                    超链接
+                    form表单的method属性是get
+                    浏览器手动输入网址
+            post请求：有请求体，如果有请求参数需要传递，放在请求体内
+                理论上是没有大小限制
+                    form表单的method属性是post
+            put请求：
+            delete请求：
+    1.2 响应报文的格式 （response）
+        响应首行
+            协议  版本  响应状态码
+            HTTP/1.1    200
+        响应头
+            Accept-Ranges: bytes
+            ETag: W/"149-1646442372967"
+            Last-Modified: Sat, 05 Mar 2022 01:06:12 GMT
+            Content-Type: text/html
+            响应的类型
+            Content-Length: 149
+            Date: Sat, 05 Mar 2022 01:19:59 GMT
+        空行
+        响应体
+            网页内容
+        响应状态码：
+            200   成功
+            304   从缓存中取资源
+            404   服务器资源找不到(路径写错了)
+            500   服务器内部出现错误(java代码出现异常)
+2. Servlet
+    Server Applet ：Servlet (服务器端的一小程序)
+    如果把Web应用比作一个餐厅，Servlet就是餐厅中的服务员(就是和客户端进行交互：处理请求和响应的)
+    2.1 HelloWorld
+        ① 在页面上创建一个超链接(计划访问后台的HelloServlet)
+            <a href="">访问HelloServlet</a>
+        ② 创建HelloServlet
+            a. 新建一个普通类
+            b. 实现接口Servlet
+            c. 实现接口中的所有抽象方法
+            d. 为HelloServlet设置访问路径
+                位置：web.xml
+                代码：
+                    <!-- HelloServlet的访问路径是 /hello-->
+                    <servlet>
+                        <!--为Servlet起个名字-->
+                        <servlet-name>abc</servlet-name>
+                        <!--Servlet的全类名-->
+                        <servlet-class>com.atguigu.servlet.HelloServlet</servlet-class>
+                    </servlet>
+                    <servlet-mapping>
+                        <!--要和servlet中servlet-name的名字一致-->
+                        <servlet-name>abc</servlet-name>
+                        <!--设置访问路径：注意 必须以/开头-->
+                        <url-pattern>/hello</url-pattern>
+                    </servlet-mapping>
+        ③ 将设置到的访问路径设置给超链接
+             <a href="hello">访问HelloServlet</a>
+            注意：
+                a. 网页必须直接在web下(不能放在WEB-INF下)
+                b. web.xml中url-pattern的值必须以/开头
+                c. 网页的请求路径，不能以/开头
+                d. 网页不能采用静态的打开方式
+            Servlet的对象管理：
+                Servlet的实例对象由Servlet容器(tomcat)负责创建
+                Servlet的方法由容器在特定情况下调用
+                Servlet容器会在Web应用卸载时（tomcat停止）销毁Servlet对象的实例
+    2.2 Servlet的生命周期
+        Servlet接口中一共有五个方法：三个和生命周期有关(init/service/destroy)
+        默认情况下，在第一此访问该Servlet的时候，创建对象、进行初始化、执行service方法
+        第二次以及以后的每一次请求发出，都直接执行service方法
+        在web应用被卸载的时候，servlet对象会被销毁，销毁之前执行destroy方法
+
+        Servlet可以设置为启动服务器的时候就创建其对象：
+            在当前Servlet的servlet标签内添加标签<load-on-startup>1</load-on-startup>
+            代码：
+                <!--设置自启动:值是一个非0整数，越小优先级越高-->
+                <load-on-startup>1</load-on-startup>
+    2.3 Servlet的技术体系
+        Servlet:实现五个方法(重点关注的只有一个service)，其他四个还必须重写
+        第二种创建Servlet的方式：
+            a. 创建一个类
+            b. 继承一个抽象类(GenericServlet)
+            c. 实现抽象类中的抽象方法
+            d. 配置Servlet的访问路径
+        GenericServlet主要的功能是：将service以外的四个方法做了实现，
+        我们自己的Servlet只需要实现service方法即可，如果想用其他的四个方法，可以采用重写
+
+        第三种创建Servlet的方式：★
+            a. 创建一个类
+            b. 继承一个抽象类(HttpServlet)
+            c. 重写两个方法doGet和doPost
+            d. 配置Servlet的访问路径
+        HttpServlet主要功能是实现service方法，然后对请求进行分发的操作(不同的请求方式调用不同的方法)
+            get请求调用doGet方法
+            post请求调用doPost方法
+    2.3 web项目中的两个接口
+        ① ServletConfig （了解）
+            一个Servlet对象对应唯一的一个ServletConfig配置对象
+            ServletConfig对象如何获得？   在init方法的形参位置
+                ServletConfig是在当前Servlet进行初始化的时候，传递给init方法的
+            功能：
+                获取Servlet名称:web.xml中配置servlet-name的值
+                    servletConfig.getServletName();
+                获取全局上下文ServletContext对象
+                    servletConfig.getServletContext();
+                获取Servlet初始化参数
+                    设置servlet的初始化参数
+                    位置：web.xml的servlet标签内
+                    代码：
+                        <!--设置当前Servlet的初始化参数-->
+                        <init-param>
+                            <param-name>path</param-name>
+                            <param-value>classpath:springmvc.xml</param-value>
+                        </init-param>
+                    servletConfig.getInitParameter("path");  根据key值获得value值
+                    servletConfig.getInitParameterNames();  获得所有的key值
+        ② ServletContext (熟悉)
+            全局上下文对象：一个web项目只有一个ServletContext对象
+            所有的Servlet共享同一个ServletContext对象
+            ServletContext对象是由服务器启动的时候，tomcat去创建的
+            如何获得到ServletContext对象：
+                a. 通过ServletConfig去获得
+                    servletConfig.getServletContext();
+                b. 通过request去获得
+                    servletRequest.getServletContext();
+            功能：
+                //获取项目的上下文路径(带/的项目名)
+                    servletContext.getContextPath();   ★
+                //获取虚拟路径所映射的本地真实路径
+                    servletContext.getRealPath("/upload");    后期上传下载会用到
+                //获取WEB应用程序的全局初始化参数
+                    如何设置全局初始化参数
+                    位置：web.xml的根节点下
+                    代码：
+                        <!--设置全局初始化参数-->
+                        <context-param>
+                            <param-name>servletCntextInitParamKey</param-name>
+                            <param-value>servletCntextInitParamValue</param-value>
+                        </context-param>
+                    取值:
+                        servletContext.getInitParameter("ccc");
+                        servletContext.getInitParameterNames();
+                //作为域对象共享数据  ★
+                    域对象：在一定的作用域范围内共享数据的对象
+                    ServletContext所用域范围是整个web项目
+                    测试：
+                        在一个Servlet内，往ServletContext对象中设置共享数据
+                        在另外一个Servlet内获取到共享的数据
+                    方法：
+                        servletContext.setAttribute(String key,Object obj);
+                        Object msg = servletContext.getAttribute(String key);
+                        servletContext.removeAttribute(String key);
+    2.4 处理请求和响应的接口
+        ① HttpServletRequest
+            该接口是ServletRequest接口的子接口，封装了HTTP请求的相关信息（请求报文中的所有信息都被封装到request对象中）
+            功能：
+                获得请求头信息
+                    request.getHeader(String key);
+                获得url的路径信息
+                    request.getContextPath();//获得上下文路径   ★
+                    request.getServerName();
+                    request.getServerPort();
+                获得请求方式
+                    request.getMethod();
+                获得请求参数  ★
+                    String request.getParameter(String key);    根据key值返回一个value
+                    String[] request.getParameterValues(String key);  根据key值返回多个value
+                    Map<String,String[]> request.getParameterMap();  将整个表单的所有数据都放在map集合内
+                转发并共享数据
+                    进行页面跳转的代码：
+                        request.getRequestDispatcher("root.html").forward(request,response);
+
+        ② HttpServletResponse
+
+
+
+
+

@@ -1,0 +1,151 @@
+1. Thymeleaf
+    1.1 HelloWorld
+    1.2 基础语法
+        ① th名称空间
+        ② 修改标签的文本值  th:text=""
+        ③ 修改标签的属性值  th:属性名=""
+        ④ 解析url地址      @{/}    上下文路径
+            所有的页面都需要过Servlet,在过Thymeleaf,在转发到页面(页面内的th:都是有效的)
+        ⑤ 获得域对象中的数据
+            应用域：ServletContext  application
+                ${appliaction.应用域中的key值}
+            会话域：HttpSession    session
+                ${session.会话域中的key值}
+            请求域：HttpServletRequest  request
+                ${请求域中的key值}
+        ⑥ Thymeleaf如何获得请求参数
+            ${param.请求参数的key值}
+        ⑦ 内置对象
+            特点：直接就可以使用的对象
+            a. 基本内置对象
+                #request    就是Servlet中的HttpServletRequest对象
+                #response   就是Servlet中的HttpServletResponse对象
+                #session    就是Servlet中的HttpSession对象
+                #servletContext   就是Servlet中的ServletContext对象
+            b. 公共内置对象
+                #strings     提供了很多对字符串操作的方法 ☆
+                #arrays      提供了操作数组的常用方法
+                #lists       提供了操作List集合的常用方法   ☆
+                #sets        提供了操作set集合的常用方法
+                #maps        提供了操作Map集合的常用方法
+        ⑧ OGNL  对象-图 导航语言
+            将复杂的对象或者集合放在域对象内，Thymeleaf如何去获取到数据
+            a. 简单对象
+                Employee employee=new Employee(101,"法外狂徒张三",0,500000.0);
+                request.setAttribute("emp",employee);
+
+                ${emp}    整个对象
+                ${emp.id}    拿到对象内getId方法的返回值
+            b. 稍微复杂对象
+                 Employee02 employee02=new Employee02(102,"熊二",1,34567d,new Computer(1,"联想",5000d));
+                 request.setAttribute("emp02",employee02);
+
+                 <div th:text="${emp02.salary}"></div>    员工的工资
+                 <div th:text="${emp02.computer}"></div>        员工的电脑对象
+                 <div th:text="${emp02.computer.id}"></div>     员工的电脑的getId方法的返回值
+            c. 简单集合
+                List<String> names=new ArrayList<>();
+                names.add("java");
+                names.add("mysql");
+                names.add("oracle");
+                names.add("php");
+                request.setAttribute("names",names);
+
+                <div th:text="${names}"></div>
+                <div th:text="${names[0]}"></div>
+                <div th:text="${names[1]}"></div>
+            d. 复杂集合
+                List<Employee> emps=new ArrayList<>();
+                emps.add(new Employee(101,"法外狂徒张三",0,500000.0));
+                emps.add(new Employee(102,"法外狂徒李四",1,600000.0));
+                emps.add(new Employee(103,"法外狂徒王五",0,700000.0));
+                request.setAttribute("emps",emps);
+
+                <p th:text="${emps}"></p>
+                <p th:text="${emps[0]}"></p>
+                <p th:text="${emps[0].id}"></p>
+                <p th:text="${emps[0].name}"></p>
+            e. Map集合
+                Map<String,Employee> map=new HashMap<>();
+                map.put("emp01",new Employee(101,"jack",0,500000.0));
+                map.put("emp02",new Employee(102,"rose",1,500000.0));
+                map.put("emp03",new Employee(103,"tom",0,500000.0));
+                request.setAttribute("map",map);
+
+                <p th:text="${map}"></p>
+                <p th:text="${map.emp01}"></p>
+                <p th:text="${map.emp01.id}"></p>
+                <p th:text="${map.emp01.name}"></p>
+
+            遇到对象就通过.属性名的方式去获取属性值(原理是调用get方法)
+            遇到List集合就通过下标获得到元素，如果元素是对象的话，还是回到上一句
+            遇到Map集合就通过.key值的方式获得value值，如果value值是对象的话，还是回到上一句
+        ⑨ 分支与迭代
+            a. 分支  控制元素的是否显示
+                th:if=""        值如果是true,元素就显示，值如果是false,就不显示
+                    <p th:if="${#strings.length(msg)>5}">msg的数据长度大于5</p>
+                    <p th:if="${not (#strings.length(msg)>5)}">msg的数据长度不大于5(1)</p>
+                th:unless=""    和if反过来即可
+                    <p th:unless="${#strings.length(msg)>5}">msg的数据长度不大于5(3)</p>
+                th:switch=""   看switch中的数据和哪个case相同，有相同的就显示哪个
+                    th:case=""
+
+                    <div th:switch="${#strings.length(msg)}">
+                        <p th:case="1">长度为1</p>
+                        <p th:case="2">长度为2</p>
+                        <p th:case="3">长度为3</p>
+                        <p th:case="4">长度为4</p>
+                        <p th:case="5">长度为5</p>
+                    </div>
+
+                    request.setAttribute("msg","是共享数据");
+            b. 迭代
+                th:each="obj,status : 后台请求域中数据的key"
+                简单数组迭代：
+                    List<String> names=new ArrayList<>();
+                    names.add("java");
+                    names.add("mysql");
+                    names.add("oracle");
+                    names.add("php");
+
+                     <ul>
+                        <li th:each="name,status : ${names}" th:text="${name}"></li>
+                    </ul>
+                复杂数组迭代：
+                    List<Employee> emps=new ArrayList<>();
+                    emps.add(new Employee(101,"法外狂徒张三",0,500000.0));
+                    emps.add(new Employee(102,"法外狂徒李四",1,600000.0));
+                    emps.add(new Employee(103,"法外狂徒王五",0,700000.0));
+                    request.setAttribute("emps",emps);
+
+                    <table border="1" width="500px">
+                            <tr>
+                                <th>序号</th>
+                                <th>编号</th>
+                                <th>姓名</th>
+                                <th>性别</th>
+                                <th>工资</th>
+                            </tr>
+                            <tr th:each="emp,status : ${emps}">
+                                <td th:text="${status.count}"></td>
+                                <td th:text="${emp.id}"></td>
+                                <td th:text="${emp.name}"></td>
+                    <!--            <td th:if="${emp.gender==0}">男</td>-->
+                    <!--            <td th:if="${emp.gender==1}">女</td>-->
+                                <td th:text="${emp.gender==0?'男':'女'}"></td>
+                                <td th:text="${emp.salary}"></td>
+                            </tr>
+                        </table>
+        ⑩ Thymeleaf包含其他模板文件
+            功能：网页内公共代码片段的提取
+            a. 给公共的代码片段起个名字
+                <div th:fragment="abc" id="header">公共头部信息</div>
+            b. 在其他页面根据名字引用
+                <div th:replace="base::abc" id="aheader"></div>   将引入标签整体替换目标标签
+                <div th:insert="base::abc" id="aheader"></div>    将引入标签插入到目标标签内
+                <div th:include="base::abc" id="aheader"></div>   将引入标签内容插入到目标标签内
+    对数据的一张表格进行增删改查
+        ① 创建一个index.html(首页) 一个按钮，点击查看所有士兵的详细信息
+        ② all.html 主要用途就是展示士兵的信息(table)
+
+
